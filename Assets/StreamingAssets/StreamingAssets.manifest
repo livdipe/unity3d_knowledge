@@ -1,0 +1,17 @@
+ManifestFileVersion: 0
+AssetBundleManifest:
+  AssetBundleInfos:
+    Info_0:
+      Name: 1/11/11
+      Dependencies: {}
+    Info_1:
+      Name: m1
+      Dependencies:
+        Dependency_0: 2048
+    Info_2:
+      Name: m2
+      Dependencies:
+        Dependency_0: 2048
+    Info_3:
+      Name: 2048
+      Dependencies: {}
