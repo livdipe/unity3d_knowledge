@@ -26,7 +26,7 @@ public class Vehicle : MonoBehaviour
 
 	private float timer;
 
-	protected void Start()
+	protected virtual void Start()
 	{
 		steeringForce = Vector2.zero;
 		sqrMaxSpeed = maxSpeed * maxSpeed;

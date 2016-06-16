@@ -4,7 +4,7 @@ using System.Collections;
 public class AILocomotion : Vehicle
 {
 	private Vector2 moveDistance;
-	void Start()
+	protected override void Start()
 	{
 		moveDistance = Vector2.zero;
 		base.Start();
