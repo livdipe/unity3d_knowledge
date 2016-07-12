@@ -28,6 +28,7 @@ public class AILocomotion : Vehicle
 		{
 			float targetAngle = Mathf.Atan2(-velocity.x, velocity.y) * Mathf.Rad2Deg;
 			transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.Euler(0, 0, targetAngle), damping * Time.deltaTime);
+			heading = velocity.normalized;
 		}
 	}
 }

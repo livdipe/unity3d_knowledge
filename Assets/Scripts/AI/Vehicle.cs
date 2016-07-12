@@ -16,6 +16,8 @@ public class Vehicle : MonoBehaviour
 
 	public Vector2 velocity;
 
+	public Vector2 heading;
+
 	public float damping = 0.9f;
 
 	public float computeInterval = 0.2f;
