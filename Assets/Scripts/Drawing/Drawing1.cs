@@ -13,12 +13,6 @@ public class Drawing1 : MonoBehaviour
 	void Start () 
 	{
 		material = new Material(Shader.Find("Particles/Additive"));
-		line = gameObject.AddComponent<LineRenderer>();
-		line.material = material;
-		line.SetVertexCount(1);
-		line.SetWidth(0.1f, 0.1f);
-		line.SetColors(Color.green, Color.green);
-		line.useWorldSpace = true;
 		isMousePressed = false;
 		pointsList = new List<Vector3>();
 	}
@@ -28,7 +22,7 @@ public class Drawing1 : MonoBehaviour
 		if (Input.GetMouseButtonDown(0))
 		{
 			isMousePressed = true;
-			line.SetVertexCount(0);
+			line = NewLine();
 			pointsList.RemoveRange(0, pointsList.Count);
 		}
 
@@ -47,6 +41,33 @@ public class Drawing1 : MonoBehaviour
 				line.SetVertexCount(pointsList.Count);
 				line.SetPosition(pointsList.Count - 1, pointsList[pointsList.Count-1]);
 			}
+		}
+	}
+
+	LineRenderer NewLine()
+	{
+		GameObject objLine = new GameObject("Line");
+		lineObjects.Add(objLine);
+		LineRenderer newLine = objLine.AddComponent<LineRenderer>();
+		newLine.material = material;
+		newLine.SetVertexCount(0);
+		newLine.SetWidth(0.1f, 0.1f);
+		newLine.SetColors(Color.green, Color.green);
+		newLine.useWorldSpace = true;
+
+		return newLine;
+	}
+
+	List<GameObject> lineObjects = new List<GameObject>();
+	void OnGUI()
+	{
+		if (GUI.Button(new Rect(0, 0, 60, 40), "Clear"))
+		{
+			for (int i = 0;i < lineObjects.Count; i ++)
+			{
+				Destroy(lineObjects[i]);
+			}
+			lineObjects.Clear();
 		}
 	}
 }
