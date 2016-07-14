@@ -52,10 +52,17 @@ public class Drawing1 : MonoBehaviour
 		newLine.material = material;
 		newLine.SetVertexCount(0);
 		newLine.SetWidth(0.1f, 0.1f);
-		newLine.SetColors(Color.green, Color.green);
+//		newLine.SetColors(Color.green, Color.green);
+		Color c = RandomColor();
+		newLine.SetColors(c, c);
 		newLine.useWorldSpace = true;
 
 		return newLine;
+	}
+
+	Color RandomColor()
+	{
+		return new Color(Random.Range(0, 1.0f), Random.Range(0, 1.0f), Random.Range(0, 1.0f), 1);
 	}
 
 	List<GameObject> lineObjects = new List<GameObject>();
