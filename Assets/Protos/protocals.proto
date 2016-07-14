@@ -1,0 +1,10 @@
+message Point
+{
+	required float x = 1;
+	required float y = 2;
+}
+
+message MouseOp
+{
+	required int32 op = 1;
+}
