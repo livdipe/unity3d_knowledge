@@ -5,6 +5,6 @@ public class BallView : BounceElement
 {
 	void OnCollisionEnter()
 	{
-		app.controller.OnBallGroundHit();
+		app.Notify(BounceNotification.BallHitGround, this);
 	}
 }
