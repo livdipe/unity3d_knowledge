@@ -7,21 +7,29 @@
 	using System;
 	using System.IO;
 
+	public enum MouseOpType
+	{
+		Down = 1,
+		Up = 2,
+	}
+
 	public class NetworkDrawing : MonoBehaviour 
 	{
-		private LineRenderer line;
-		private Material material;
-		private bool isMousePressed;
-		public List<Vector3> pointsList;
-		private Vector3 mousePos;
 		public static NetworkDrawing _instance;
 		SocketClient client;
 		public Queue<string> msgQueue = new Queue<string>();
+		private Dictionary<int, Player> players = new Dictionary<int, Player>();
+		public PlayerView view;
+		public Color[] brushColors = new Color[]{Color.blue, 
+			Color.cyan, Color.gray, 
+			Color.green, Color.grey, 
+			Color.magenta, Color.red, 
+			Color.yellow};
 
 		void Awake()
 		{
 			_instance = this;
-			DontDestroyOnLoad(gameObject);
+			UnityEngine.Random.seed = System.DateTime.Now.Millisecond;
 		}
 
 		public static NetworkDrawing Instance
@@ -34,27 +42,21 @@
 
 		void Start () 
 		{
-			InitDrawTool();
+			ScreenDebuger.Instance.AddMsg("NetworkDrawing Start");
 			InitNetwork();
-		}
-
-		void InitDrawTool()
-		{
-			material = new Material(Shader.Find("Particles/Additive"));
-			isMousePressed = false;
-			pointsList = new List<Vector3>();
+			view = gameObject.AddComponent<PlayerView>();
 		}
 
 		void InitNetwork()
 		{
+			ScreenDebuger.Instance.AddMsg("InitNetwork");
 			client = new SocketClient();
-			client.ConnectServer("127.0.0.1", 4444);
+			client.ConnectServer("192.168.0.101", 4444);
 		}
 
-		void Send(string msg)
+		void Update () 
 		{
-			byte[] bytes = System.Text.Encoding.UTF8.GetBytes(msg);
-			client.SendMessage(bytes);
+			UpdateMessage();
 		}
 
 		void UpdateMessage()
@@ -66,114 +68,101 @@
 			}
 		}
 
+		public void Send(string msg)
+		{
+			byte[] bytes = System.Text.Encoding.UTF8.GetBytes(msg);
+			client.SendMessage(bytes);
+		}
+
 		void ProcessData(string msg)
 		{
 //			Debug.Log("msg:" + msg);
+//			msg = msg.Substring(0, msg.IndexOf('\r'));
+			Player player = null;
 			string[] array = msg.Split(new char[]{','});
 			switch(array[0])
 			{
-			case "id":
+			case "loginok":
+				int playerID = int.Parse(array[1]);
+				player = AddPlayer(playerID);
+				if (player != null)
+				{
+					view.controller = player;
+				}
+				break;
+			case "newclient":
+				AddPlayer(int.Parse(array[1]));
+				break;
+			case "color":
+				player = GetPlayer(int.Parse(array[6]));
+				if (player != null)
+				{
+					player.SetColor(new Color(float.Parse(array[1]), float.Parse(array[2]),float.Parse(array[3]),float.Parse(array[4])));
+				}
 				break;
 			case "mouseop":
-				MouseOperate(int.Parse(array[1]));
+				player = GetPlayer(int.Parse(array[3]));
+				if (player != null)
+				{
+					player.MouseOperate(int.Parse(array[1]));
+				}
 				break;
 			case "point":
-				AddPoint(float.Parse(array[1]), float.Parse(array[2]));
+				player = GetPlayer(int.Parse(array[4]));
+				if (player != null)
+				{
+					player.AddPoint(float.Parse(array[1]), float.Parse(array[2]));
+				}
 				break;
 			case "clear":
-				Clear();
+				player = GetPlayer(int.Parse(array[2]));
+				if (player != null)
+				{
+					player.Clear();
+				}
 				break;
 			default:
 				break;
 			}
 		}
-		
-		void Update () 
+
+		Player AddPlayer(int id)
 		{
-			UpdateMessage();
-
-			if (Input.GetMouseButtonDown(0))
+			if (!players.ContainsKey(id))
 			{
-				Send(string.Format("mouseop,{0}", (int)MouseOpType.Down));
+				Player player = new Player();
+				player.PlayerID = id;
+				player.Init();
+				players.Add(id, player);
+				return player;
 			}
+			return null;
+		}
 
-			if (Input.GetMouseButtonUp(0))
+		public void RemovePlayer(int id)
+		{
+			if (players.ContainsKey(id))
 			{
-				Send(string.Format("mouseop,{0}", (int)MouseOpType.Up));
-			}
-
-			if (isMousePressed)
-			{
-				mousePos = Camera.main.ScreenToWorldPoint(Input.mousePosition);
-				mousePos.z = 0;
-				Send(string.Format("point,{0},{1}", mousePos.x, mousePos.y));
+				players.Remove(id);
 			}
 		}
 
-		enum MouseOpType
+		Player GetPlayer(int id)
 		{
-			Down = 1,
-			Up = 2,
-		}
-
-		void MouseOperate(int op)
-		{
-			//down
-			switch((MouseOpType)op)
+			if (players.ContainsKey(id))
 			{
-			case MouseOpType.Down:
-				isMousePressed = true;
-				line = NewLine();
-				pointsList.RemoveRange(0, pointsList.Count);
-				break;
-
-			case MouseOpType.Up:
-				isMousePressed = false;
-				break;
+				return players[id];
+			}
+			else
+			{
+				return null;
 			}
 		}
 
-		void AddPoint(float x, float y)
+		public Color RandomColor()
 		{
-			Vector3 mousePos = new Vector3(x, y, 0);
-			if (!pointsList.Contains(mousePos))
-			{
-				pointsList.Add(mousePos);
-				line.SetVertexCount(pointsList.Count);
-				line.SetPosition(pointsList.Count - 1, pointsList[pointsList.Count-1]);
-			}
-		}
-
-		void Clear()
-		{
-			for (int i = 0;i < lineObjects.Count; i ++)
-			{
-				Destroy(lineObjects[i]);
-			}
-			lineObjects.Clear();
-		}
-
-		LineRenderer NewLine()
-		{
-			GameObject objLine = new GameObject("Line");
-			lineObjects.Add(objLine);
-			LineRenderer newLine = objLine.AddComponent<LineRenderer>();
-			newLine.material = material;
-			newLine.SetVertexCount(0);
-			newLine.SetWidth(0.1f, 0.1f);
-			newLine.SetColors(Color.green, Color.green);
-			newLine.useWorldSpace = true;
-
-			return newLine;
-		}
-
-		List<GameObject> lineObjects = new List<GameObject>();
-		void OnGUI()
-		{
-			if (GUI.Button(new Rect(0, 0, 60, 40), "Clear"))
-			{
-				Send("clear");
-			}
+			int idx = UnityEngine.Random.Range(0, brushColors.Length);
+			return brushColors[idx];
 		}
 	}
 }

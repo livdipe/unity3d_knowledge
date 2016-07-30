@@ -20,10 +20,6 @@
 
 		public SocketClient()
 		{
-		}
-
-		public void OnRegister()
-		{
 			memStream = new MemoryStream();
 			reader = new BinaryReader(memStream);
 		}
@@ -67,11 +63,13 @@
 			{
 				Close();
 				Debug.LogError(e.Message);
+				ScreenDebuger.Instance.AddMsg(e.Message);
 			}
 		}
 
 		void OnConnect(IAsyncResult asr)
 		{
+			ScreenDebuger.Instance.AddMsg("Connected Server");
 			outStream = client.GetStream();
 			client.GetStream().BeginRead(byteBuffer, 0, MAX_READ, new AsyncCallback(OnRead), null);
 		}
@@ -105,10 +103,39 @@
 			}
 		}
 
+//		void OnReceive(byte[] bytes, int length)
+//		{
+//			string msg = System.Text.Encoding.UTF8.GetString(bytes, 0, length);
+//			NetworkDrawing.Instance.msgQueue.Enqueue(msg);
+//		}
+
 		void OnReceive(byte[] bytes, int length)
 		{
-			string msg = System.Text.Encoding.UTF8.GetString(bytes, 0, length);
-			NetworkDrawing.Instance.msgQueue.Enqueue(msg);
+//			Debug.Log("OnReceive:"+length);
+			memStream.Seek(0, SeekOrigin.End);
+			memStream.Write(bytes, 0, length);
+			memStream.Seek(0, SeekOrigin.Begin);
+			while (RemainingBytes() > 2)
+			{
+				byte[] len_buf = reader.ReadBytes(2);
+				if (BitConverter.IsLittleEndian) {
+					Array.Reverse(len_buf);
+				}
+				ushort messageLen = BitConverter.ToUInt16(len_buf, 0);
+				if (RemainingBytes() >= messageLen)
+				{
+					string msg = System.Text.Encoding.UTF8.GetString(reader.ReadBytes(messageLen), 0, messageLen);
+					NetworkDrawing.Instance.msgQueue.Enqueue(msg);
+				}
+				else
+				{
+					memStream.Position = memStream.Position - 2;
+					break;
+				}
+			}
+			byte[] leftover = reader.ReadBytes((int)RemainingBytes());
+			memStream.SetLength(0);
+			memStream.Write(leftover, 0, leftover.Length);
 		}
 
 		long RemainingBytes()
@@ -118,9 +145,24 @@
 
 		void WriteMessage(byte[] message)
 		{
-			if (client != null && client.Connected)
+			MemoryStream ms = null;
+			using(ms = new MemoryStream())
 			{
-				outStream.BeginWrite(message, 0, message.Length, new AsyncCallback(OnWrite), null);
+				ms.Position = 0;
+				BinaryWriter writer = new BinaryWriter(ms);
+				byte[] len_bytes = BitConverter.GetBytes(message.Length);
+				if (BitConverter.IsLittleEndian)
+				{
+					Array.Reverse(len_bytes);
+				}
+				writer.Write(len_bytes);
+				writer.Write(message);
+				writer.Flush();
+				if (client != null && client.Connected)
+				{
+					byte[] payload = ms.ToArray();
+					outStream.BeginWrite(payload, 0, payload.Length, new AsyncCallback(OnWrite), null);
+				}
 			}
 		}
 
