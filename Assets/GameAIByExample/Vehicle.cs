@@ -2,6 +2,7 @@
 {
 	using UnityEngine;
 	using System.Collections;
+	using System.Collections.Generic;
 
 	public class Vehicle : MonoBehaviour 
 	{
@@ -12,25 +13,50 @@
 		public float m_dMass;
 		public float m_dMaxSpeed;
 		public float m_dMaxForce;
-		public float m_dMaxTurnRate;
+		float m_dMaxTurnRate = 20;
+		public float radius = 2;
 		SteeringBehaviors m_pSteering;
 
-		public Transform trTarget;
+
+//		public Transform trTarget;
+		public bool isSeekOn = false;
+		public bool isSeparation = true;
+		float worldRadius = 5f;
+		public List<Vehicle> neighbors = new List<Vehicle>();
 
 		void Start () 
 		{
 			m_pSteering = new SteeringBehaviors(this);
-			InvokeRepeating("ChangeTarget", 2, 20);
+			m_vPos = transform.position;
+			Debug.Log(new Vector2(3,4).magnitude);
+			Debug.Log(transform.TransformPoint(transform.position));
 		}
 
-		void ChangeTarget()
+		void TagNeighbors()
 		{
-			m_pSteering.m_vTarget = new Vector2(Random.Range(-5.0f, 5.0f), Random.Range(-5.0f, 5.0f));
-			trTarget.position = m_pSteering.m_vTarget;
+			neighbors.Clear();
+			for (int i = 0; i < AIManager.Instance.players.Length; i++)
+			{
+				Vector2 to = AIManager.Instance.players[i].Pos() - Pos();
+
+				float range = radius * AIManager.Instance.players[i].radius;
+
+				if (AIManager.Instance.players[i] != this && (to.sqrMagnitude < range * range))
+				{
+					neighbors.Add(AIManager.Instance.players[i]);
+				}
+			}
 		}
-		
+
+
 		void Update () 
 		{
+//			if (trTarget == null)
+//			{
+//				return ;
+//			}
+			TagNeighbors();
+//			Vector2 SteeringForce = m_pSteering.Seek(trTarget.position);
 			Vector2 SteeringForce = m_pSteering.Calculate();
 
 			//加速度 ＝ 力 / 质量
@@ -54,8 +80,22 @@
 				m_vSide = Perp(m_vHeading); 
 			}
 
+			if (m_vPos.x > worldRadius) 
+				m_vPos.x = -worldRadius;
+
+			if (m_vPos.y > worldRadius)
+				m_vPos.y = -worldRadius;
+
+			if (m_vPos.x < -worldRadius)
+				m_vPos.x = worldRadius;
+
+			if (m_vPos.y < -worldRadius)
+				m_vPos.y = worldRadius;
+
 			transform.position = m_vPos;
 
+			float targetAngle = Mathf.Atan2(-m_vSide.y, m_vSide.x) * Mathf.Rad2Deg;
+			transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.Euler(0, 0, targetAngle), m_dMaxTurnRate * Time.deltaTime);
 		}
 
 		Vector2 Perp(Vector2 v)
@@ -71,6 +111,11 @@
 		public Vector2 Velocity()
 		{
 			return m_vVelocity;
+		}
+
+		public Vector2 Pos()
+		{
+			return new Vector2(transform.position.x, transform.position.y);
 		}
 	}
 }
